@@ -1,0 +1,101 @@
+# -*- coding: utf-8 -*-
+"""
+Script for graph curvature and centrality visualization.
+Author: André Luiz de Góes Pacheco, postdoctoral researcher at iLIKA-UFRPE.
+
+This work was published in the article:
+Pacheco, A. L. G. (2024). Topological classification in schizophrenia. Brazilian Journal of Health Review.
+https://ojs.brazilianjournals.com.br/ojs/index.php/BJHR/article/view/68803
+"""
+
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+
+def calculate_and_visualize_forman_ricci_curvature(G):
+    """
+    Calculates the Forman-Ricci curvature for each edge of a graph G and then visualizes the graph.
+
+    Parameters:
+    G (nx.Graph): A NetworkX graph.
+    """
+    for edge in G.edges():
+        v1, v2 = edge
+        w_e = G[v1][v2].get('weight', 1.0)
+        w_v1 = G.degree(v1, weight='weight')
+        w_v2 = G.degree(v2, weight='weight')
+        forman_curvature = 4 - (w_v1 + w_v2) / w_e
+        G[v1][v2]['formanCurvature'] = forman_curvature
+
+    # Graph visualization with Forman-Ricci curvature
+    pos = nx.spring_layout(G)
+    edge_colors = [G[u][v]['formanCurvature'] for u, v in G.edges()]
+    edge_widths = [2 + abs(G[u][v]['formanCurvature']) / 2 for u, v in G.edges()]
+
+    nx.draw(G, pos, with_labels=True, edge_color=edge_colors, width=edge_widths,
+            edge_cmap=plt.cm.coolwarm, node_color='lightblue')
+
+    sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm, norm=plt.Normalize(vmin=min(edge_colors), vmax=max(edge_colors)))
+    sm.set_array([])
+    plt.colorbar(sm, label='Forman-Ricci Curvature')
+    plt.title("Graph Visualization with Forman-Ricci Curvature")
+    plt.show()
+
+def calculate_and_visualize_top10_centralities(G):
+    """
+    Calculates various centralities for a graph G and visualizes the graph highlighting the top 10 nodes
+    of each centrality. Mixed colors are used for nodes that are top in multiple centralities.
+
+    Parameters:
+    G (nx.Graph): A NetworkX graph.
+    """
+    # Calculating centralities
+    bet_centrality = nx.betweenness_centrality(G)
+    deg_centrality = nx.degree_centrality(G)
+    eig_centrality = nx.eigenvector_centrality(G, max_iter=1000)
+    clo_centrality = nx.closeness_centrality(G)
+
+    # Finding the top 10 nodes for each centrality
+    top_bet = sorted(bet_centrality, key=bet_centrality.get, reverse=True)[:10]
+    top_deg = sorted(deg_centrality, key=deg_centrality.get, reverse=True)[:10]
+    top_eig = sorted(eig_centrality, key=eig_centrality.get, reverse=True)[:10]
+    top_clo = sorted(clo_centrality, key=closeness_centrality.get, reverse=True)[:10]
+
+    # Defining colors for each centrality
+    colors = {
+        'bet': np.array([1, 0, 0]),  # Red
+        'deg': np.array([0, 1, 0]),  # Green
+        'eig': np.array([0, 0, 1]),  # Blue
+        'clo': np.array([1, 0, 1])   # Purple
+    }
+
+    # Initializing the color of each node as light gray
+    node_colors = {node: np.array([0.8, 0.8, 0.8]) for node in G.nodes()}
+
+    # Updating the color of nodes based on top centralities
+    for node in G.nodes():
+        if node in top_bet:
+            node_colors[node] += colors['bet']
+        if node in top_deg:
+            node_colors[node] += colors['deg']
+        if node in top_eig:
+            node_colors[node] += colors['eig']
+        if node in top_clo:
+            node_colors[node] += colors['clo']
+        node_colors[node] = np.clip(node_colors[node], 0, 1)  # Clipping the color to the range [0, 1]
+
+    # Node positioning
+    pos = nx.spring_layout(G)
+
+    # Drawing the graph
+    nx.draw(G, pos, with_labels=True, node_color=[node_colors[node] for node in G.nodes()])
+
+    # Creating the legend
+    plt.scatter([], [], color=colors['bet'], label='Top 10 Betweenness')
+    plt.scatter([], [], color=colors['deg'], label='Top 10 Degree')
+    plt.scatter([], [], color=colors['eig'], label='Top 10 Eigenvector')
+    plt.scatter([], [], color=colors['clo'], label='Top 10 Closeness')
+    plt.legend()
+
+    plt.title("Graph Visualization with Top 10 Centralities")
+    plt.show()
